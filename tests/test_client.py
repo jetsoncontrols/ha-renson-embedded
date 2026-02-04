@@ -54,17 +54,14 @@ class TestRensonClient:
     async def test_get_status(self, authenticated_client):
         """Test getting device status using authenticated client.
 
-        Expected response should contain:
-        - state: Current state
-        - slide_position: Slide position (for roof)
-        - rotation_position: Rotation position (for roof)
-
-        NOTE: The correct API endpoint needs to be discovered by:
-        1. Opening https://<host>/roof in a browser
-        2. Opening DevTools (F12) -> Network tab
-        3. Interacting with roof controls
-        4. Looking for API calls that return JSON with state/position data
-        5. Updating RensonConfig.path in test_config.json or config.py default
+        The API endpoint /api/v1/skye2/roof/status returns:
+        - state: Overall device state (ready, moving, homing, error, etc.)
+        - current_roof_positions: Contains stack and tilt positions
+          - stack: Stack position as percentage (0-100)
+          - tilt: Tilt/rotation position in degrees (0-90)
+        - locked: Whether the roof is locked
+        - p1_status/p2_status: Detailed motor controller status
+        - action_status: Current action state and completion
         """
         # Verify client is authenticated before calling
         assert authenticated_client._token, "Client must be authenticated"
@@ -75,22 +72,34 @@ class TestRensonClient:
         status = await authenticated_client.async_get_status()
 
         print(f"✓ STATUS RETRIEVED")
-        print(f"  Response: {status}")
 
         # Verify we got a response
         assert status is not None, "Status should not be None"
         assert isinstance(status, dict), "Status should be a dictionary"
 
-        # Log what we received
-        if "state" in status:
-            print(f"  State: {status['state']}")
-        if "slide_position" in status:
-            print(f"  Slide Position: {status['slide_position']}")
-        if "rotation_position" in status:
-            print(f"  Rotation Position: {status['rotation_position']}")
+        # Verify required top-level fields exist
+        assert "state" in status, "Response should contain 'state'"
+        assert "current_roof_positions" in status, "Response should contain 'current_roof_positions'"
+        assert "locked" in status, "Response should contain 'locked'"
 
-        # Print all keys for discovery
-        print(f"  Available keys: {list(status.keys())}")
+        # Verify roof positions structure
+        positions = status["current_roof_positions"]
+        assert "stack" in positions, "Positions should contain 'stack'"
+        assert "tilt" in positions, "Positions should contain 'tilt'"
+
+        # Log discovered values
+        print(f"  State: {status['state']}")
+        print(f"  Locked: {status['locked']}")
+        print(f"  Stack Position: {positions['stack']:.2f}%")
+        print(f"  Tilt Position: {positions['tilt']:.2f}°")
+
+        # Verify data types
+        assert isinstance(status["state"], str), "State should be a string"
+        assert isinstance(status["locked"], bool), "Locked should be a boolean"
+        assert isinstance(positions["stack"], (int, float)), "Stack should be numeric"
+        assert isinstance(positions["tilt"], (int, float)), "Tilt should be numeric"
+
+        print(f"  ✓ All expected fields present and valid")
 
     @pytest.mark.asyncio
     async def test_open(self, authenticated_client):

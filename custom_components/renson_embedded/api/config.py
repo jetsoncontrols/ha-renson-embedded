@@ -15,14 +15,15 @@ class RensonConfig:
     host: str
     """IP address or hostname of the Renson device (required)."""
 
-    path: str = "/api/v1/roof"
-    """API path for the controlled device. Default: '/api/v1/roof' for roof control.
+    path: str = "/api/v1/skye2/roof/status"
+    """API path for the controlled device. Default: '/api/v1/skye2/roof/status' for roof control.
 
-    To discover the correct path:
-    1. Open the Renson web UI in a browser (https://<host>/roof)
-    2. Open browser DevTools (F12) and go to Network tab
-    3. Interact with the roof controls in the UI
-    4. Look for API calls in the Network tab to find the correct endpoint
+    This endpoint returns comprehensive roof status including:
+    - current_roof_positions: Stack and tilt positions (percentage and degrees)
+    - state: Device state (ready, moving, homing, etc.)
+    - locked: Whether roof is locked
+    - p1_status/p2_status: Detailed motor status, temperatures, sensors
+    - action_status: Current action and movement details
     """
 
     user_type: Literal["user", "professional", "renson technician"] = "user"
