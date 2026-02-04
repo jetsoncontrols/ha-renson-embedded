@@ -5,15 +5,15 @@ from pathlib import Path
 
 import pytest
 
-# Import config.py first, then client.py
-config_path = Path(__file__).parent.parent / "custom_components" / "renson_embedded" / "config.py"
+# Import config.py first, then client.py from api subfolder
+config_path = Path(__file__).parent.parent / "custom_components" / "renson_embedded" / "api" / "config.py"
 spec = importlib.util.spec_from_file_location("renson_config", config_path)
 renson_config = importlib.util.module_from_spec(spec)
 sys.modules["renson_config"] = renson_config
 spec.loader.exec_module(renson_config)
 RensonConfig = renson_config.RensonConfig
 
-client_path = Path(__file__).parent.parent / "custom_components" / "renson_embedded" / "client.py"
+client_path = Path(__file__).parent.parent / "custom_components" / "renson_embedded" / "api" / "client.py"
 spec = importlib.util.spec_from_file_location("renson_client", client_path)
 renson_client = importlib.util.module_from_spec(spec)
 sys.modules["renson_client"] = renson_client

@@ -91,17 +91,17 @@ async def authenticated_client(test_config):
     import importlib.util
     from pathlib import Path
 
-    client_path = Path(__file__).parent.parent / "custom_components" / "renson_embedded" / "client.py"
-    spec = importlib.util.spec_from_file_location("renson_client", client_path)
-    renson_client = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(renson_client)
-    RensonClient = renson_client.RensonClient
-
-    config_path = Path(__file__).parent.parent / "custom_components" / "renson_embedded" / "config.py"
+    config_path = Path(__file__).parent.parent / "custom_components" / "renson_embedded" / "api" / "config.py"
     spec = importlib.util.spec_from_file_location("renson_config", config_path)
     renson_config = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(renson_config)
     RensonConfig = renson_config.RensonConfig
+
+    client_path = Path(__file__).parent.parent / "custom_components" / "renson_embedded" / "api" / "client.py"
+    spec = importlib.util.spec_from_file_location("renson_client", client_path)
+    renson_client = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(renson_client)
+    RensonClient = renson_client.RensonClient
 
     # Create config and client
     config = RensonConfig(
