@@ -26,7 +26,7 @@ class TestRensonClient:
         assert client.password == "password"
 
     @pytest.mark.asyncio
-    async def test_login(self, renson_host, renson_user_type, renson_password):
+    async def test_login(self, renson_host, renson_user_type, renson_password, rate_limit_delay):
         """Test logging into the Renson web interface using the client.
 
         Endpoint: POST /api/v1/authenticate
@@ -54,7 +54,7 @@ class TestRensonClient:
             await client.async_close()
 
     @pytest.mark.asyncio
-    async def test_logout(self, renson_host, renson_user_type, renson_password):
+    async def test_logout(self, renson_host, renson_user_type, renson_password, rate_limit_delay):
         """Test logout functionality using the client.
 
         The client should handle logout gracefully even if no logout endpoint exists.
@@ -78,7 +78,7 @@ class TestRensonClient:
             await client.async_close()
 
     @pytest.mark.asyncio
-    async def test_client_context_manager(self, renson_host, renson_user_type, renson_password):
+    async def test_client_context_manager(self, renson_host, renson_user_type, renson_password, rate_limit_delay):
         """Test that client properly manages session lifecycle."""
         client = RensonClient(renson_host, renson_user_type, renson_password)
 

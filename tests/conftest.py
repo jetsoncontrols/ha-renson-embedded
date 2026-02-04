@@ -1,4 +1,5 @@
 """Test fixtures for Renson Embedded integration."""
+import asyncio
 import json
 import ssl
 from pathlib import Path
@@ -57,8 +58,21 @@ def ssl_context():
     return context
 
 
+@pytest.fixture(scope="function")
+def rate_limit_delay():
+    """Add delay between tests to avoid rate limiting.
+
+    The Renson device rate limits authentication requests.
+    This fixture adds a 2 second delay after tests that authenticate.
+    """
+    yield
+    # Delay after test completes to avoid rate limiting
+    import time
+    time.sleep(2)
+
+
 @pytest.fixture
-async def authenticated_session(renson_host, renson_user_type, renson_password, ssl_context):
+async def authenticated_session(renson_host, renson_user_type, renson_password, ssl_context, rate_limit_delay):
     """Provide an authenticated aiohttp session with automatic logout cleanup.
 
     This fixture:
