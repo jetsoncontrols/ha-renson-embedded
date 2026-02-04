@@ -1,10 +1,8 @@
 """Tests for Renson client."""
 import importlib.util
-import ssl
 import sys
 from pathlib import Path
 
-import aiohttp
 import pytest
 
 # Import client.py directly without triggering __init__.py
@@ -21,132 +19,78 @@ class TestRensonClient:
     @pytest.mark.asyncio
     async def test_client_initialization(self, renson_host):
         """Test that client can be initialized."""
-        client = RensonClient(renson_host)
+        client = RensonClient(renson_host, "user", "password")
         assert client.host == renson_host
-        assert client.base_url == f"http://{renson_host}"
+        assert client.base_url == f"https://{renson_host}"
+        assert client.user_type == "user"
+        assert client.password == "password"
 
     @pytest.mark.asyncio
     async def test_login(self, renson_host, renson_user_type, renson_password):
-        """Test logging into the Renson web interface.
+        """Test logging into the Renson web interface using the client.
 
         Endpoint: POST /api/v1/authenticate
         Payload: {"user_name": "user", "user_pwd": "password"}
         Response: {"user_role": "USER", "token": "JWT_TOKEN"}
         """
-        # Create SSL context that ignores self-signed certificates
-        ssl_context = ssl.create_default_context()
-        ssl_context.check_hostname = False
-        ssl_context.verify_mode = ssl.CERT_NONE
+        client = RensonClient(renson_host, renson_user_type, renson_password)
 
-        async with aiohttp.ClientSession() as session:
-            base_url = f"https://{renson_host}"
-            url = f"{base_url}/api/v1/authenticate"
+        try:
+            print(f"\n=== Testing Authentication with RensonClient ===")
+            print(f"Host: {renson_host}")
+            print(f"User Type: {renson_user_type}")
 
-            # Build payload - user_type needs to be converted to lowercase "user" format
-            user_name = renson_user_type.lower()
-            payload = {
-                "user_name": user_name,
-                "user_pwd": renson_password
-            }
+            token = await client.async_login()
 
-            print(f"\n=== Testing Authentication ===")
-            print(f"URL: {url}")
-            print(f"Payload: {payload}")
+            print(f"✓ LOGIN SUCCESSFUL")
+            print(f"  Token: {token[:50]}...")
 
-            async with session.post(url, json=payload, ssl=ssl_context) as response:
-                print(f"Status: {response.status}")
+            # Verify we got a valid token
+            assert token, "Token is empty"
+            assert isinstance(token, str), "Token should be a string"
 
-                assert response.status == 200, f"Login failed with status {response.status}"
-
-                data = await response.json()
-                print(f"Response: {data}")
-
-                # Verify we got a token
-                assert "token" in data, "Response missing token field"
-                assert data["token"], "Token is empty"
-
-                # Verify user role
-                assert "user_role" in data, "Response missing user_role field"
-
-                print(f"✓ LOGIN SUCCESSFUL")
-                print(f"  User Role: {data['user_role']}")
-                print(f"  Token: {data['token'][:50]}...")
-
-                return data["token"]
+            return token
+        finally:
+            await client.async_close()
 
     @pytest.mark.asyncio
     async def test_logout(self, renson_host, renson_user_type, renson_password):
-        """Test logout functionality.
+        """Test logout functionality using the client.
 
-        First authenticate, then try to discover and test the logout endpoint.
+        The client should handle logout gracefully even if no logout endpoint exists.
         """
-        # Create SSL context that ignores self-signed certificates
-        ssl_context = ssl.create_default_context()
-        ssl_context.check_hostname = False
-        ssl_context.verify_mode = ssl.CERT_NONE
+        client = RensonClient(renson_host, renson_user_type, renson_password)
 
-        async with aiohttp.ClientSession() as session:
-            base_url = f"https://{renson_host}"
+        try:
+            print(f"\n=== Testing Logout with RensonClient ===")
 
-            # First, login to get a token
-            login_url = f"{base_url}/api/v1/authenticate"
-            user_name = renson_user_type.lower()
-            payload = {
-                "user_name": user_name,
-                "user_pwd": renson_password
-            }
+            # Login first
+            token = await client.async_login()
+            print(f"Logged in with token: {token[:50]}...")
 
-            async with session.post(login_url, json=payload, ssl=ssl_context) as response:
-                assert response.status == 200, f"Login failed with status {response.status}"
-                data = await response.json()
-                token = data["token"]
+            # Logout
+            await client.async_logout()
+            print(f"✓ LOGOUT COMPLETED")
 
-            print(f"\n=== Testing Logout Endpoints ===")
-            print(f"Token: {token[:50]}...")
+            # Verify token is cleared
+            assert client._token is None, "Token should be cleared after logout"
+        finally:
+            await client.async_close()
 
-            # Try common logout endpoints
-            logout_endpoints = [
-                "/api/v1/logout",
-                "/api/v1/auth/logout",
-                "/api/logout",
-                "/logout",
-                "/api/v1/session",
-            ]
+    @pytest.mark.asyncio
+    async def test_client_context_manager(self, renson_host, renson_user_type, renson_password):
+        """Test that client properly manages session lifecycle."""
+        client = RensonClient(renson_host, renson_user_type, renson_password)
 
-            headers = {"Authorization": f"Bearer {token}"}
+        # Login
+        token = await client.async_login()
+        assert token, "Should have token after login"
+        assert client._session is not None, "Session should be created"
 
-            for endpoint in logout_endpoints:
-                url = f"{base_url}{endpoint}"
-                print(f"\nTesting: {url}")
-
-                # Try POST
-                try:
-                    async with session.post(url, headers=headers, ssl=ssl_context) as response:
-                        print(f"  POST status: {response.status}")
-                        if response.status == 200:
-                            print(f"  ✓ LOGOUT SUCCESSFUL (POST)")
-                            return
-                        if response.status not in [404, 405]:
-                            text = await response.text()
-                            print(f"  Response: {text[:200]}")
-                except Exception as e:
-                    print(f"  POST error: {e}")
-
-                # Try DELETE
-                try:
-                    async with session.delete(url, headers=headers, ssl=ssl_context) as response:
-                        print(f"  DELETE status: {response.status}")
-                        if response.status == 200:
-                            print(f"  ✓ LOGOUT SUCCESSFUL (DELETE)")
-                            return
-                        if response.status not in [404, 405]:
-                            text = await response.text()
-                            print(f"  Response: {text[:200]}")
-                except Exception as e:
-                    print(f"  DELETE error: {e}")
-
-            print("\n=== Logout endpoint discovery needed ===")
-            print("Please check browser dev tools for the logout API call")
+        # Close
+        await client.async_close()
+        assert client._token is None, "Token should be cleared"
+        assert client._session is None, "Session should be closed"
 
     @pytest.mark.asyncio
     async def test_authenticated_session_fixture(self, authenticated_session):
