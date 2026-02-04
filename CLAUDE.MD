@@ -115,7 +115,7 @@ custom_components/renson_embedded/
 
 ### API Client
 
-- **RensonConfig**: Dataclass with host, user_type, password, port, verify_ssl, timeout
+- **RensonConfig**: Dataclass with host, path, user_type, password, port, verify_ssl, timeout
 - **RensonClient**: Manages session lifecycle (login, operations, logout)
 - **Authentication**: POST /api/v1/authenticate with JWT token response
 - **Device specifics**:
@@ -123,6 +123,8 @@ custom_components/renson_embedded/
   - Rate limits authentication requests (429 Too Many Requests)
   - User types: "user", "professional", "renson technician"
   - No server-side logout endpoint (token is client-side only)
+  - Angular SPA web UI at `/roof` (returns HTML, not JSON)
+  - API endpoints require discovery via browser DevTools Network tab
 
 ### Key Patterns
 

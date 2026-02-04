@@ -75,17 +75,17 @@ def rate_limit_delay():
     time.sleep(2)
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 async def authenticated_client(test_config):
-    """Provide a session-scoped authenticated RensonClient.
+    """Provide a function-scoped authenticated RensonClient.
 
     This fixture:
-    1. Creates a single client instance with RensonConfig
-    2. Authenticates once at the start of the test session
-    3. Yields the client for all tests to use
+    1. Creates a client instance with RensonConfig
+    2. Authenticates at the start of each test
+    3. Yields the client for the test to use
     4. Logs out and closes the session at the end
 
-    This matches real-world usage: log in once, do multiple operations, log out when done.
+    Note: Changed from session to function scope due to aiohttp event loop limitations.
     """
     # Import here to avoid circular imports
     import importlib.util
@@ -111,13 +111,9 @@ async def authenticated_client(test_config):
     )
     client = RensonClient(config)
 
-    print(f"\n=== Session Setup: Authenticating to {config.host} ===")
     await client.async_login()
-    print(f"✓ Session authenticated successfully")
 
     yield client
 
     # Cleanup: logout and close
-    print(f"\n=== Session Teardown: Logging out ===")
     await client.async_close()
-    print(f"✓ Session closed")

@@ -54,8 +54,7 @@ class RensonClient:
             aiohttp.ClientError: If authentication fails
         """
         if not self._session:
-            timeout = aiohttp.ClientTimeout(total=self.config.timeout)
-            self._session = aiohttp.ClientSession(timeout=timeout)
+            self._session = aiohttp.ClientSession()
 
         url = f"{self.base_url}/api/v1/authenticate"
         payload = {
@@ -109,9 +108,36 @@ class RensonClient:
         return {"Authorization": f"Bearer {self._token}"}
 
     async def async_get_status(self) -> dict[str, Any]:
-        """Get the current status of the device."""
-        # TODO: Implement REST API call to get status
-        pass
+        """Get the current status of the device.
+
+        Returns:
+            Dictionary containing:
+            - state: Current state of the device
+            - slide_position: Slide position (if applicable)
+            - rotation_position: Rotation position (if applicable)
+
+        Raises:
+            ValueError: If not authenticated
+            aiohttp.ClientError: If request fails
+        """
+        if not self._session:
+            raise ValueError("Not authenticated. Call async_login() first.")
+
+        url = f"{self.base_url}{self.config.path}"
+        headers = self._get_headers()
+
+        async with self._session.get(url, headers=headers, ssl=self._ssl_context) as response:
+            response.raise_for_status()
+
+            # Check content type to see if we're getting JSON or HTML
+            content_type = response.headers.get("Content-Type", "")
+            if "application/json" in content_type:
+                data = await response.json()
+                return data
+            else:
+                # Return text for debugging
+                text = await response.text()
+                return {"_content_type": content_type, "_preview": text[:500]}
 
     async def async_open_roof(self) -> None:
         """Open the pergola roof."""

@@ -52,12 +52,45 @@ class TestRensonClient:
 
     @pytest.mark.asyncio
     async def test_get_status(self, authenticated_client):
-        """Test getting device status using authenticated client."""
+        """Test getting device status using authenticated client.
+
+        Expected response should contain:
+        - state: Current state
+        - slide_position: Slide position (for roof)
+        - rotation_position: Rotation position (for roof)
+
+        NOTE: The correct API endpoint needs to be discovered by:
+        1. Opening https://<host>/roof in a browser
+        2. Opening DevTools (F12) -> Network tab
+        3. Interacting with roof controls
+        4. Looking for API calls that return JSON with state/position data
+        5. Updating RensonConfig.path in test_config.json or config.py default
+        """
         # Verify client is authenticated before calling
         assert authenticated_client._token, "Client must be authenticated"
 
-        # TODO: Implement once we discover the status endpoint
-        pass
+        print(f"\n=== Testing Get Status ===")
+        print(f"Endpoint: {authenticated_client.base_url}{authenticated_client.config.path}")
+
+        status = await authenticated_client.async_get_status()
+
+        print(f"✓ STATUS RETRIEVED")
+        print(f"  Response: {status}")
+
+        # Verify we got a response
+        assert status is not None, "Status should not be None"
+        assert isinstance(status, dict), "Status should be a dictionary"
+
+        # Log what we received
+        if "state" in status:
+            print(f"  State: {status['state']}")
+        if "slide_position" in status:
+            print(f"  Slide Position: {status['slide_position']}")
+        if "rotation_position" in status:
+            print(f"  Rotation Position: {status['rotation_position']}")
+
+        # Print all keys for discovery
+        print(f"  Available keys: {list(status.keys())}")
 
     @pytest.mark.asyncio
     async def test_open(self, authenticated_client):

@@ -15,6 +15,16 @@ class RensonConfig:
     host: str
     """IP address or hostname of the Renson device (required)."""
 
+    path: str = "/api/v1/roof"
+    """API path for the controlled device. Default: '/api/v1/roof' for roof control.
+
+    To discover the correct path:
+    1. Open the Renson web UI in a browser (https://<host>/roof)
+    2. Open browser DevTools (F12) and go to Network tab
+    3. Interact with the roof controls in the UI
+    4. Look for API calls in the Network tab to find the correct endpoint
+    """
+
     user_type: Literal["user", "professional", "renson technician"] = "user"
     """User type for authentication. Default: 'user'."""
 
