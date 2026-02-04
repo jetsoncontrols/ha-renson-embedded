@@ -1,0 +1,21 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Renson Embedded Setup",
+        "description": "Enter the connection details for your Renson Pergola device.",
+        "data": {
+          "name": "Name",
+          "host": "Host (IP Address or Hostname)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to the device",
+      "unknown": "Unexpected error occurred"
+    },
+    "abort": {
+      "already_configured": "Device is already configured"
+    }
+  }
+}

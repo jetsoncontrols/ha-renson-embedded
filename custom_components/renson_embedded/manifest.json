@@ -1,0 +1,12 @@
+{
+  "domain": "renson_embedded",
+  "name": "Renson Embedded",
+  "codeowners": ["@sshanafelt"],
+  "config_flow": true,
+  "documentation": "https://github.com/sshanafelt/ha-renson-embedded",
+  "integration_type": "device",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/sshanafelt/ha-renson-embedded/issues",
+  "requirements": [],
+  "version": "0.0.1"
+}
