@@ -118,13 +118,20 @@ custom_components/renson_embedded/
 - **RensonConfig**: Dataclass with host, path, user_type, password, port, verify_ssl, timeout
 - **RensonClient**: Manages session lifecycle (login, operations, logout)
 - **Authentication**: POST /api/v1/authenticate with JWT token response
+- **Roof Status**: GET /api/v1/skye2/roof/status returns comprehensive device state
+  - `state`: Device state (ready, moving, homing, error, etc.)
+  - `locked`: Boolean indicating if roof is locked
+  - `current_roof_positions`: Contains `stack` (0-100%) and `tilt` (0-90°)
+  - `p1_status`/`p2_status`: Motor controller details (temps, sensors, positions)
+  - `action_status`: Current action state and completion
+- **Real-time updates**: WebSocket at /api/v1/ws/events for live state changes
 - **Device specifics**:
   - Self-signed SSL certificates (verify_ssl=False)
   - Rate limits authentication requests (429 Too Many Requests)
   - User types: "user", "professional", "renson technician"
   - No server-side logout endpoint (token is client-side only)
   - Angular SPA web UI at `/roof` (returns HTML, not JSON)
-  - API endpoints require discovery via browser DevTools Network tab
+  - API endpoints discovered via browser DevTools Network tab
 
 ### Key Patterns
 
