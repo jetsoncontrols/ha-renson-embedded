@@ -26,6 +26,71 @@ class TestRensonClient:
         assert client.password == "password"
 
     @pytest.mark.asyncio
+    async def test_authenticated_client_has_token(self, authenticated_client):
+        """Test that the shared authenticated client has a valid token."""
+        print(f"\n=== Testing Authenticated Client ===")
+        print(f"Host: {authenticated_client.host}")
+        print(f"Token: {authenticated_client._token[:50]}...")
+
+        assert authenticated_client._token, "Client should have a token"
+        assert isinstance(authenticated_client._token, str), "Token should be a string"
+        assert authenticated_client._session is not None, "Client should have an active session"
+
+        print(f"✓ Authenticated client is ready")
+
+    @pytest.mark.asyncio
+    async def test_get_status(self, authenticated_client):
+        """Test getting device status using authenticated client."""
+        # Verify client is authenticated before calling
+        assert authenticated_client._token, "Client must be authenticated"
+
+        # TODO: Implement once we discover the status endpoint
+        pass
+
+    @pytest.mark.asyncio
+    async def test_open(self, authenticated_client):
+        """Test opening the pergola roof using authenticated client."""
+        # Verify client is authenticated before calling
+        assert authenticated_client._token, "Client must be authenticated"
+
+        # TODO: Implement once we discover the open endpoint
+        pass
+
+    @pytest.mark.asyncio
+    async def test_close(self, authenticated_client):
+        """Test closing the pergola roof using authenticated client."""
+        # Verify client is authenticated before calling
+        assert authenticated_client._token, "Client must be authenticated"
+
+        # TODO: Implement once we discover the close endpoint
+        pass
+
+    @pytest.mark.asyncio
+    async def test_stop(self, authenticated_client):
+        """Test stopping the pergola roof using authenticated client."""
+        # Verify client is authenticated before calling
+        assert authenticated_client._token, "Client must be authenticated"
+
+        # TODO: Implement once we discover the stop endpoint
+        pass
+
+    @pytest.mark.asyncio
+    async def test_set_position(self, authenticated_client):
+        """Test setting pergola roof position using authenticated client."""
+        # Verify client is authenticated before calling
+        assert authenticated_client._token, "Client must be authenticated"
+
+        # TODO: Implement once we discover the set position endpoint
+        pass
+
+
+class TestRensonClientLifecycle:
+    """Tests for RensonClient authentication lifecycle.
+
+    These tests need their own client instances to test login/logout behavior.
+    """
+
+    @pytest.mark.asyncio
     async def test_login(self, renson_host, renson_user_type, renson_password, rate_limit_delay):
         """Test logging into the Renson web interface using the client.
 
@@ -36,7 +101,7 @@ class TestRensonClient:
         client = RensonClient(renson_host, renson_user_type, renson_password)
 
         try:
-            print(f"\n=== Testing Authentication with RensonClient ===")
+            print(f"\n=== Testing Login ===")
             print(f"Host: {renson_host}")
             print(f"User Type: {renson_user_type}")
 
@@ -48,8 +113,7 @@ class TestRensonClient:
             # Verify we got a valid token
             assert token, "Token is empty"
             assert isinstance(token, str), "Token should be a string"
-
-            return token
+            assert client._session is not None, "Session should be created"
         finally:
             await client.async_close()
 
@@ -62,7 +126,7 @@ class TestRensonClient:
         client = RensonClient(renson_host, renson_user_type, renson_password)
 
         try:
-            print(f"\n=== Testing Logout with RensonClient ===")
+            print(f"\n=== Testing Logout ===")
 
             # Login first
             token = await client.async_login()
@@ -91,50 +155,3 @@ class TestRensonClient:
         await client.async_close()
         assert client._token is None, "Token should be cleared"
         assert client._session is None, "Session should be closed"
-
-    @pytest.mark.asyncio
-    async def test_authenticated_session_fixture(self, authenticated_session):
-        """Test that authenticated_session fixture provides a working session with token."""
-        session = authenticated_session
-
-        # Verify session has expected attributes
-        assert hasattr(session, 'renson_token'), "Session missing renson_token attribute"
-        assert hasattr(session, 'renson_base_url'), "Session missing renson_base_url attribute"
-        assert hasattr(session, 'renson_ssl_context'), "Session missing renson_ssl_context attribute"
-
-        assert session.renson_token, "Token is empty"
-        assert session.renson_base_url.startswith('https://'), "Base URL should use HTTPS"
-
-        print(f"\n✓ Authenticated session fixture working")
-        print(f"  Base URL: {session.renson_base_url}")
-        print(f"  Token: {session.renson_token[:50]}...")
-
-    @pytest.mark.asyncio
-    async def test_get_status(self, renson_host, renson_user_type, renson_password):
-        """Test getting device status."""
-        # TODO: Implement test
-        pass
-
-    @pytest.mark.asyncio
-    async def test_open(self, renson_host, renson_user_type, renson_password):
-        """Test opening the pergola roof."""
-        # TODO: Implement test
-        pass
-
-    @pytest.mark.asyncio
-    async def test_close(self, renson_host, renson_user_type, renson_password):
-        """Test closing the pergola roof."""
-        # TODO: Implement test
-        pass
-
-    @pytest.mark.asyncio
-    async def test_stop(self, renson_host, renson_user_type, renson_password):
-        """Test stopping the pergola roof."""
-        # TODO: Implement test
-        pass
-
-    @pytest.mark.asyncio
-    async def test_set_position(self, renson_host, renson_user_type, renson_password):
-        """Test setting pergola roof position."""
-        # TODO: Implement test
-        pass

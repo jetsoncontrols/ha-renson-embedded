@@ -8,9 +8,12 @@ import aiohttp
 import pytest
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def test_config():
-    """Load test configuration from config file."""
+    """Load test configuration from config file.
+
+    Session-scoped to allow session-scoped authenticated_client fixture.
+    """
     config_path = Path(__file__).parent / "test_config.json"
 
     if not config_path.exists():
@@ -28,13 +31,13 @@ def test_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def renson_host(test_config):
     """Get the Renson device host from test config."""
     return test_config["host"]
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def renson_user_type(test_config):
     """Get the Renson device user type from test config.
 
@@ -43,7 +46,7 @@ def renson_user_type(test_config):
     return test_config.get("user_type", "User")
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def renson_password(test_config):
     """Get the Renson device password from test config (if required)."""
     return test_config.get("password")
@@ -60,10 +63,11 @@ def ssl_context():
 
 @pytest.fixture(scope="function")
 def rate_limit_delay():
-    """Add delay between tests to avoid rate limiting.
+    """Add delay after tests to avoid rate limiting on lifecycle tests.
 
     The Renson device rate limits authentication requests.
-    This fixture adds a 2 second delay after tests that authenticate.
+    This fixture is only needed for TestRensonClientLifecycle tests
+    that create their own client instances.
     """
     yield
     # Delay after test completes to avoid rate limiting
@@ -71,52 +75,42 @@ def rate_limit_delay():
     time.sleep(2)
 
 
-@pytest.fixture
-async def authenticated_session(renson_host, renson_user_type, renson_password, ssl_context, rate_limit_delay):
-    """Provide an authenticated aiohttp session with automatic logout cleanup.
+@pytest.fixture(scope="session")
+async def authenticated_client(test_config):
+    """Provide a session-scoped authenticated RensonClient.
 
     This fixture:
-    1. Creates a session
-    2. Authenticates and gets a token
-    3. Yields the session with the token
-    4. Logs out after the test completes
+    1. Creates a single client instance
+    2. Authenticates once at the start of the test session
+    3. Yields the client for all tests to use
+    4. Logs out and closes the session at the end
+
+    This matches real-world usage: log in once, do multiple operations, log out when done.
     """
-    async with aiohttp.ClientSession() as session:
-        base_url = f"https://{renson_host}"
+    # Import here to avoid circular imports
+    import importlib.util
+    from pathlib import Path
 
-        # Login
-        login_url = f"{base_url}/api/v1/authenticate"
-        user_name = renson_user_type.lower()
-        payload = {
-            "user_name": user_name,
-            "user_pwd": renson_password
-        }
+    client_path = Path(__file__).parent.parent / "custom_components" / "renson_embedded" / "client.py"
+    spec = importlib.util.spec_from_file_location("renson_client", client_path)
+    renson_client = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(renson_client)
+    RensonClient = renson_client.RensonClient
 
-        async with session.post(login_url, json=payload, ssl=ssl_context) as response:
-            if response.status != 200:
-                pytest.fail(f"Login failed with status {response.status}")
+    # Create and login
+    client = RensonClient(
+        test_config["host"],
+        test_config.get("user_type", "User"),
+        test_config.get("password")
+    )
 
-            data = await response.json()
-            token = data.get("token")
+    print(f"\n=== Session Setup: Authenticating to {test_config['host']} ===")
+    await client.async_login()
+    print(f"✓ Session authenticated successfully")
 
-            if not token:
-                pytest.fail("No token received from authentication")
+    yield client
 
-        # Store token and base URL for convenience
-        session.renson_token = token
-        session.renson_base_url = base_url
-        session.renson_ssl_context = ssl_context
-
-        # Yield session to test
-        yield session
-
-        # Logout after test completes
-        try:
-            logout_url = f"{base_url}/api/v1/logout"
-            headers = {"Authorization": f"Bearer {token}"}
-            async with session.post(logout_url, headers=headers, ssl=ssl_context) as response:
-                # Don't fail test if logout fails, just log it
-                if response.status not in [200, 401, 404]:
-                    print(f"\nWarning: Logout returned status {response.status}")
-        except Exception as e:
-            print(f"\nWarning: Logout failed with error: {e}")
+    # Cleanup: logout and close
+    print(f"\n=== Session Teardown: Logging out ===")
+    await client.async_close()
+    print(f"✓ Session closed")
