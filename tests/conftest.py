@@ -80,7 +80,7 @@ async def authenticated_client(test_config):
     """Provide a session-scoped authenticated RensonClient.
 
     This fixture:
-    1. Creates a single client instance
+    1. Creates a single client instance with RensonConfig
     2. Authenticates once at the start of the test session
     3. Yields the client for all tests to use
     4. Logs out and closes the session at the end
@@ -97,14 +97,21 @@ async def authenticated_client(test_config):
     spec.loader.exec_module(renson_client)
     RensonClient = renson_client.RensonClient
 
-    # Create and login
-    client = RensonClient(
-        test_config["host"],
-        test_config.get("user_type", "User"),
-        test_config.get("password")
-    )
+    config_path = Path(__file__).parent.parent / "custom_components" / "renson_embedded" / "config.py"
+    spec = importlib.util.spec_from_file_location("renson_config", config_path)
+    renson_config = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(renson_config)
+    RensonConfig = renson_config.RensonConfig
 
-    print(f"\n=== Session Setup: Authenticating to {test_config['host']} ===")
+    # Create config and client
+    config = RensonConfig(
+        host=test_config["host"],
+        user_type=test_config.get("user_type", "User"),
+        password=test_config.get("password")
+    )
+    client = RensonClient(config)
+
+    print(f"\n=== Session Setup: Authenticating to {config.host} ===")
     await client.async_login()
     print(f"✓ Session authenticated successfully")
 

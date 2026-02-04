@@ -3,33 +3,46 @@ from __future__ import annotations
 
 import asyncio
 import ssl
+import sys
 from typing import Any
 
 import aiohttp
+
+try:
+    from .config import RensonConfig
+except ImportError:
+    # Handle direct module imports (e.g., in tests)
+    from renson_config import RensonConfig
 
 
 class RensonClient:
     """Client to communicate with Renson Embedded device via REST API."""
 
-    def __init__(self, host: str, user_type: str = "user", password: str | None = None) -> None:
+    def __init__(self, config: RensonConfig) -> None:
         """Initialize the client.
 
         Args:
-            host: The IP address or hostname of the Renson device
-            user_type: User type for authentication ('user', 'professional', or 'renson technician')
-            password: Password for authentication (if required)
+            config: RensonConfig instance with all configuration options
         """
-        self.host = host
-        self.base_url = f"https://{host}"
-        self.user_type = user_type.lower()
-        self.password = password
+        self.config = config
         self._token: str | None = None
         self._session: aiohttp.ClientSession | None = None
 
-        # Create SSL context that ignores self-signed certificates
+        # Create SSL context based on config
         self._ssl_context = ssl.create_default_context()
-        self._ssl_context.check_hostname = False
-        self._ssl_context.verify_mode = ssl.CERT_NONE
+        if not config.verify_ssl:
+            self._ssl_context.check_hostname = False
+            self._ssl_context.verify_mode = ssl.CERT_NONE
+
+    @property
+    def host(self) -> str:
+        """Get the host from config."""
+        return self.config.host
+
+    @property
+    def base_url(self) -> str:
+        """Get the base URL from config."""
+        return self.config.base_url
 
     async def async_login(self) -> str:
         """Authenticate with the Renson device and get a JWT token.
@@ -41,12 +54,13 @@ class RensonClient:
             aiohttp.ClientError: If authentication fails
         """
         if not self._session:
-            self._session = aiohttp.ClientSession()
+            timeout = aiohttp.ClientTimeout(total=self.config.timeout)
+            self._session = aiohttp.ClientSession(timeout=timeout)
 
         url = f"{self.base_url}/api/v1/authenticate"
         payload = {
-            "user_name": self.user_type,
-            "user_pwd": self.password
+            "user_name": self.config.user_type,
+            "user_pwd": self.config.password
         }
 
         async with self._session.post(url, json=payload, ssl=self._ssl_context) as response:

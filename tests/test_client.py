@@ -5,10 +5,18 @@ from pathlib import Path
 
 import pytest
 
-# Import client.py directly without triggering __init__.py
+# Import config.py first, then client.py
+config_path = Path(__file__).parent.parent / "custom_components" / "renson_embedded" / "config.py"
+spec = importlib.util.spec_from_file_location("renson_config", config_path)
+renson_config = importlib.util.module_from_spec(spec)
+sys.modules["renson_config"] = renson_config
+spec.loader.exec_module(renson_config)
+RensonConfig = renson_config.RensonConfig
+
 client_path = Path(__file__).parent.parent / "custom_components" / "renson_embedded" / "client.py"
 spec = importlib.util.spec_from_file_location("renson_client", client_path)
 renson_client = importlib.util.module_from_spec(spec)
+sys.modules["renson_client"] = renson_client
 spec.loader.exec_module(renson_client)
 RensonClient = renson_client.RensonClient
 
@@ -18,12 +26,16 @@ class TestRensonClient:
 
     @pytest.mark.asyncio
     async def test_client_initialization(self, renson_host):
-        """Test that client can be initialized."""
-        client = RensonClient(renson_host, "user", "password")
+        """Test that client can be initialized with config."""
+        config = RensonConfig(host=renson_host, user_type="user", password="password")
+        client = RensonClient(config)
+
         assert client.host == renson_host
         assert client.base_url == f"https://{renson_host}"
-        assert client.user_type == "user"
-        assert client.password == "password"
+        assert client.config.user_type == "user"
+        assert client.config.password == "password"
+        assert client.config.verify_ssl is False  # Default
+        assert client.config.timeout == 30  # Default
 
     @pytest.mark.asyncio
     async def test_authenticated_client_has_token(self, authenticated_client):
@@ -98,7 +110,12 @@ class TestRensonClientLifecycle:
         Payload: {"user_name": "user", "user_pwd": "password"}
         Response: {"user_role": "USER", "token": "JWT_TOKEN"}
         """
-        client = RensonClient(renson_host, renson_user_type, renson_password)
+        config = RensonConfig(
+            host=renson_host,
+            user_type=renson_user_type,
+            password=renson_password
+        )
+        client = RensonClient(config)
 
         try:
             print(f"\n=== Testing Login ===")
@@ -123,7 +140,12 @@ class TestRensonClientLifecycle:
 
         The client should handle logout gracefully even if no logout endpoint exists.
         """
-        client = RensonClient(renson_host, renson_user_type, renson_password)
+        config = RensonConfig(
+            host=renson_host,
+            user_type=renson_user_type,
+            password=renson_password
+        )
+        client = RensonClient(config)
 
         try:
             print(f"\n=== Testing Logout ===")
@@ -144,7 +166,12 @@ class TestRensonClientLifecycle:
     @pytest.mark.asyncio
     async def test_client_context_manager(self, renson_host, renson_user_type, renson_password, rate_limit_delay):
         """Test that client properly manages session lifecycle."""
-        client = RensonClient(renson_host, renson_user_type, renson_password)
+        config = RensonConfig(
+            host=renson_host,
+            user_type=renson_user_type,
+            password=renson_password
+        )
+        client = RensonClient(config)
 
         # Login
         token = await client.async_login()
