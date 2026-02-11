@@ -5,7 +5,7 @@
   "config_flow": true,
   "documentation": "https://github.com/sshanafelt/ha-renson-embedded",
   "integration_type": "device",
-  "iot_class": "local_polling",
+  "iot_class": "local_push",
   "issue_tracker": "https://github.com/sshanafelt/ha-renson-embedded/issues",
   "requirements": [],
   "version": "0.0.1"
