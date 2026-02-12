@@ -2,26 +2,20 @@
 
 ## Project Overview
 
-This is the `ha-renson-embedded` project - a Home Assistant integration.
-
-## Purpose
-
-To provide Home Assistant cover entities that control a Renson Pergola motorized roof
+Home Assistant custom integration for controlling a Renson Skye Pergola motorized roof. Deployed via HACS custom repository.
 
 ## Architecture
 
-Python client that communicates over REST to the built in web service on the device
+Python integration using aiohttp for REST API + WebSocket communication with the device's built-in web service. Uses `DataUpdateCoordinator` with 30s REST fallback and WebSocket push for real-time updates.
 
 ## Key Technologies
 
 - **Python 3.12+** - Primary language
-- **aiohttp** - Async HTTP client for REST API communication
-- **asyncio** - Asynchronous I/O for non-blocking operations
-- **Home Assistant** - Smart home automation platform
+- **aiohttp** - Async HTTP client for REST API and WebSocket
+- **Home Assistant** - DataUpdateCoordinator, CoordinatorEntity
 - **pytest** - Testing framework with async support (pytest-asyncio)
-- **dataclasses** - Configuration management (RensonConfig)
 - **JWT** - JSON Web Token authentication
-- **HTTPS/SSL** - Secure communication (self-signed certificates)
+- **HTTPS/SSL** - Self-signed certificates (verify_ssl=False)
 
 ## Development Guidelines
 
@@ -29,117 +23,114 @@ Python client that communicates over REST to the built in web service on the dev
 
 **IMPORTANT: Always commit working code before making major changes.**
 
-Follow these practices when working on this codebase:
-
-1. **Commit Before Major Changes**
-   - Create a git commit before implementing significant new features
-   - Commit before refactoring existing code
-   - Commit before making breaking changes
-   - This creates a safe rollback point if issues arise
-
-2. **Commit Message Format**
-   - Use clear, descriptive commit messages
-   - Start with a verb in present tense (e.g., "Add", "Update", "Fix", "Refactor")
-   - Keep the first line under 72 characters
-   - Add detailed description in the body if needed
-
-3. **When to Commit**
-   - After completing a logical unit of work
-   - Before switching to a different task
-   - Before making experimental or risky changes
-   - At natural breakpoints in development
-
-4. **What to Commit**
-   - Only commit working, tested code
-   - Never commit broken code
-   - Exclude test configuration files with credentials (`tests/test_config.json`)
-   - Include all related changes in a single commit
+1. **Commit Before Major Changes** - Create a safe rollback point before significant features, refactors, or breaking changes
+2. **Commit Message Format** - Present tense verb (Add, Update, Fix, Refactor), under 72 chars
+3. **What to Commit** - Only working code. Exclude `tests/test_config.json` (has real credentials)
 
 ## Testing Strategy
 
-### Running Tests
-
 ```bash
-# Run all tests
-pytest tests/
-
-# Run all tests with verbose output
-pytest tests/ -v
-
-# Run all tests with print statements visible
-pytest tests/ -v -s
-
-# Run specific test file
-pytest tests/test_client.py
-
-# Run specific test class or method
-pytest tests/test_client.py::TestRensonClient::test_login
+pytest tests/ -v -s          # All tests with output
+pytest tests/test_client.py  # Specific file
+pytest tests/test_client.py::TestRensonClient::test_login  # Specific test
 ```
-
-### Test Architecture
 
 - **Session-scoped authentication**: One login per test session, reused across tests
 - **Rate limiting protection**: 2-second delays between lifecycle tests to avoid HTTP 429
 - **Test configuration**: `tests/test_config.json` (gitignored, contains device credentials)
-- **Fixtures**: Defined in `tests/conftest.py`
-  - `authenticated_client`: Shared authenticated client for all tests
-  - `rate_limit_delay`: Prevents rate limiting on individual login tests
-  - `test_config`, `renson_host`, `renson_user_type`, `renson_password`: Config access
+- Tests use `importlib.util` to load modules directly (no HA dependency in tests)
 
-### Test Organization
-
-- **TestRensonClient**: Tests using shared authenticated session (fast, 7 tests)
-- **TestRensonClientLifecycle**: Tests authentication behavior (3 tests with delays)
-
-## Deployment
-
-Deployed via public github repo, HACS custom repository
-
-## Important Notes for Claude
-
-### Project Structure
+## Project Structure
 
 ```
-custom_components/renson_embedded/
-├── api/                      # API client layer
-│   ├── __init__.py          # Exports: RensonClient, RensonConfig
-│   ├── client.py            # REST API client with JWT authentication
-│   └── config.py            # RensonConfig dataclass
-├── __init__.py              # Integration setup/teardown
-├── config_flow.py           # Configuration flow UI
-├── const.py                 # Constants
-├── cover.py                 # Cover entity implementation
-├── manifest.json            # Integration metadata
-└── strings.json             # UI strings
+ha-renson-embedded/
+├── hacs.json                     # HACS custom repository config
+├── custom_components/renson_embedded/
+│   ├── api/                      # API client layer
+│   │   ├── __init__.py          # Exports: RensonClient, RensonConfig
+│   │   ├── client.py            # REST/WebSocket client with JWT auth
+│   │   └── config.py            # RensonConfig dataclass
+│   ├── __init__.py              # Integration setup/teardown
+│   ├── binary_sensor.py         # Binary sensors (Fully Closed, Fully Opened)
+│   ├── button.py                # Buttons (Fully Open, Fully Close, Open/Stop/Close/Stop cycle)
+│   ├── config_flow.py           # Configuration flow (validates auth)
+│   ├── const.py                 # Constants
+│   ├── coordinator.py           # DataUpdateCoordinator (REST + WebSocket)
+│   ├── cover.py                 # Cover entity (slide + tilt control, is_opening/is_closing)
+│   ├── entity.py                # RensonEntity base class (shared DeviceInfo with web UI link)
+│   ├── sensor.py                # Sensors (Roof State, Weather State)
+│   ├── switch.py                # Switch (Roof Lock)
+│   ├── manifest.json            # Integration metadata
+│   ├── strings.json             # UI strings
+│   └── translations/en.json     # Entity name translations (required for display)
+└── tests/
 ```
 
-### API Client
+## REST API Endpoints
 
-- **RensonConfig**: Dataclass with host, path, user_type, password, port, verify_ssl, timeout
-- **RensonClient**: Manages session lifecycle (login, operations, logout)
-- **Authentication**: POST /api/v1/authenticate with JWT token response
-- **Roof Status**: GET /api/v1/skye2/roof/status returns comprehensive device state
-  - `state`: Device state (ready, moving, homing, error, etc.)
-  - `locked`: Boolean indicating if roof is locked
-  - `current_roof_positions`: Contains `stack` (0-100%) and `tilt` (0-90°)
-  - `p1_status`/`p2_status`: Motor controller details (temps, sensors, positions)
-  - `action_status`: Current action state and completion
-- **Real-time updates**: WebSocket at /api/v1/ws/events for live state changes
-- **Device specifics**:
-  - Self-signed SSL certificates (verify_ssl=False)
-  - Rate limits authentication requests (429 Too Many Requests)
-  - User types: "user", "professional", "renson technician"
-  - No server-side logout endpoint (token is client-side only)
-  - Angular SPA web UI at `/roof` (returns HTML, not JSON)
-  - API endpoints discovered via browser DevTools Network tab
+All endpoints at `https://<host>/api/v1/...` with Bearer token auth.
 
-### Key Patterns
+| Method | Endpoint | Body | Description |
+|--------|----------|------|-------------|
+| POST | `/authenticate` | `{"user_name":"...","user_pwd":"..."}` | Login, returns JWT |
+| GET | `/skye2/roof/status` | - | Full roof status |
+| GET | `/skye2/status` | - | Simplified status |
+| PUT | `/skye2/roof/move` | `{"action":"stack","value":<0-100>}` | Set slide position |
+| PUT | `/skye2/roof/move` | `{"action":"tilt","value":<degrees>}` | Set tilt angle |
+| PUT | `/skye2/roof/stop` | `{}` | Stop all movement |
+| PUT | `/skye2/roof/lock` | `"true"` or `"false"` (plain text) | Lock/unlock roof |
+| GET | `/skye2/comfort/weather/state` | - | Weather state |
 
-- **Session management**: Log in once, perform multiple operations, log out when done
-- **Configuration**: Always use RensonConfig dataclass, never pass individual params
-- **Testing**: Use authenticated_client fixture for most tests, avoid repeated logins
-- **Import handling**: Client uses try/except for relative imports to support both HA and tests
+## WebSocket Protocol (wss://<host>/api/v1/ws/events)
 
----
+- **Authenticate**: `{"type":"Authenticate","data":{"bearer":"<jwt>"}}`
+- **Subscribe**: `{"type":"Subscribe","data":{"subscriptions":["ROOF_STATUS_CHANGED","SKYE2_STATUS_CHANGED","ROOF_SELF_TEST_STATUS_CHANGED","DIGITAL_INPUT_STATUS_CHANGED","SYSTEM_STATUS_CHANGED"]}}`
+- **Ping**: `{"type":"Ping","data":{}}` every ~25s
+- **Events**: `ROOF_STATUS_CHANGED` (full status with positions, motor details), `SKYE2_STATUS_CHANGED` (simplified with `roof_device.state`, `roof_device.direction`)
 
-_This file helps Claude Code understand your project better. Update it with relevant context about your codebase._
+### WebSocket Direction Values (from `SKYE2_STATUS_CHANGED`)
+- `roof_device.state`: `"moving"` or `"ready"`
+- `roof_device.direction`: `"tilting_open"`, `"tilting_close"`, `"stacking"`, `"unstacking"`, `"idle"`
+
+## Device Behavior
+
+- **Device only processes one move command at a time** — sending a second command overrides the first
+- **Closing tilt to 0° automatically closes the slide** — no need to send both commands
+- **Opening stack automatically sets slats to 90°** — no need to send both commands
+- **Slide position** (`stack`): 0-100% (device reports floats like 99.99, values are rounded to int)
+- **Tilt angle** (`tilt`): 0-125° device range, mapped to HA 0-100 scale (device may report up to ~125.0005, clamped silently)
+- **Negative values possible**: Device can report small negatives (e.g. -0.07°), handled by rounding/clamping
+- Move commands return 202 Accepted (async operations)
+- Self-signed SSL certificates (verify_ssl=False)
+- Rate limits authentication requests (429 Too Many Requests)
+- User types: "user", "professional", "renson technician"
+
+## Entity Details
+
+### Cover
+- `is_closed`: Only checks stack (round(stack) == 0) — tilt not factored in to avoid toggle loop
+- `is_opening`/`is_closing`: Uses `roof_device` from SKYE2_STATUS_CHANGED WebSocket events
+- Open: sends stack to 100 (device auto-tilts to 90°)
+- Close: sends tilt to 0 (device auto-closes slide)
+- Tilt range: 0-125° mapped to HA 0-100; open tilt sends 90° (not max 125°)
+
+### Binary Sensors
+- **Fully Closed**: on when round(stack)==0 AND round(tilt)==0
+- **Fully Opened**: on when round(stack)>=100 AND round(tilt)>=90
+
+### Cycle Button (Open/Stop/Close/Stop)
+- If moving → stop
+- If stopped, last direction was opening (or fully open) → close (tilt to 0)
+- If stopped, last direction was closing (or fully closed) → open (stack to 100)
+- Tracks `_last_direction` from WebSocket updates; defaults to "closing" on startup
+
+## Key Patterns
+
+- `RensonEntity(CoordinatorEntity)` base class with shared `DeviceInfo` (includes `configuration_url` for web UI "Visit" button)
+- Device identified by host IP in `DeviceInfo.identifiers`
+- `entry_id` used for unique entity IDs
+- Coordinator preserves `roof_device` WebSocket data across REST polls to prevent UI flickering
+- When REST poll fails, `UpdateFailed` makes all entities unavailable automatically
+- `ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)` instead of `ssl.create_default_context()` (avoids blocking)
+- Client uses try/except for relative imports to support both HA and standalone tests
+- Custom integrations need `translations/en.json` (not just `strings.json`) for entity names to display

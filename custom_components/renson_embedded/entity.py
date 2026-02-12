@@ -21,5 +21,6 @@ class RensonEntity(CoordinatorEntity[RensonCoordinator]):
             manufacturer="Renson",
             model="Skye Pergola",
             name="Renson Pergola",
+            configuration_url=f"https://{coordinator.client.host}",
         )
         self._entry_id = entry_id

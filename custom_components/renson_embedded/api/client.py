@@ -364,32 +364,54 @@ class RensonClient:
         ) as response:
             response.raise_for_status()
 
-    async def async_fully_open_roof(self) -> None:
-        """Fully open the pergola roof (stack + tilt)."""
-        # TODO: Discover and implement REST API call to fully open
-        pass
+    async def _async_roof_move(self, action: str, value: float) -> None:
+        """Send a move command to the roof.
 
-    async def async_fully_close_roof(self) -> None:
-        """Fully close the pergola roof (stack + tilt)."""
-        # TODO: Discover and implement REST API call to fully close
-        pass
+        Args:
+            action: "stack" or "tilt".
+            value: Target value (percentage for stack, degrees for tilt).
+        """
+        if not self._session:
+            raise ValueError("Not authenticated. Call async_login() first.")
+
+        url = f"{self.base_url}/api/v1/skye2/roof/move"
+        headers = self._get_headers()
+        payload = {"action": action, "value": value}
+
+        async with self._session.put(
+            url, json=payload, headers=headers, ssl=self._ssl_context
+        ) as response:
+            response.raise_for_status()
 
     async def async_open_roof(self) -> None:
-        """Open the pergola roof."""
-        # TODO: Implement REST API call to open
-        pass
+        """Open the pergola roof (stack to 100%)."""
+        await self._async_roof_move("stack", 100)
 
     async def async_close_roof(self) -> None:
-        """Close the pergola roof."""
-        # TODO: Implement REST API call to close
-        pass
+        """Close the pergola roof (stack to 0%)."""
+        await self._async_roof_move("stack", 0)
 
     async def async_stop_roof(self) -> None:
         """Stop the pergola roof."""
-        # TODO: Implement REST API call to stop
-        pass
+        if not self._session:
+            raise ValueError("Not authenticated. Call async_login() first.")
+
+        url = f"{self.base_url}/api/v1/skye2/roof/stop"
+        headers = self._get_headers()
+
+        async with self._session.put(
+            url, json={}, headers=headers, ssl=self._ssl_context
+        ) as response:
+            response.raise_for_status()
 
     async def async_set_roof_position(self, position: int) -> None:
-        """Set the pergola roof to a specific position."""
-        # TODO: Implement REST API call to set position
-        pass
+        """Set the pergola roof stack to a specific position (0-100%)."""
+        await self._async_roof_move("stack", position)
+
+    async def async_set_roof_tilt(self, degrees: float) -> None:
+        """Set the pergola roof tilt to a specific angle.
+
+        Args:
+            degrees: Tilt angle in degrees (0-125).
+        """
+        await self._async_roof_move("tilt", degrees)

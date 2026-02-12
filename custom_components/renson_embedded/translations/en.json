@@ -22,12 +22,23 @@
     }
   },
   "entity": {
+    "binary_sensor": {
+      "fully_closed": {
+        "name": "Fully Closed"
+      },
+      "fully_opened": {
+        "name": "Fully Opened"
+      }
+    },
     "button": {
       "fully_open": {
         "name": "Fully Open"
       },
       "fully_close": {
         "name": "Fully Close"
+      },
+      "cycle": {
+        "name": "Open/Stop/Close/Stop"
       }
     },
     "sensor": {

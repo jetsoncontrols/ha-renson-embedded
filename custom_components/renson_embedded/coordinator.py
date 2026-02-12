@@ -55,6 +55,12 @@ class RensonCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         except Exception:
             _LOGGER.debug("Failed to fetch weather state", exc_info=True)
 
+        # Preserve WebSocket-only keys (e.g. roof_device from SKYE2_STATUS_CHANGED)
+        if self.data:
+            for key in ("roof_device",):
+                if key in self.data and key not in data:
+                    data[key] = self.data[key]
+
         return data
 
     def _start_websocket(self) -> None:
